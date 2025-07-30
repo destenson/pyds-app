@@ -50,7 +50,7 @@ dependencies = [
     "click>=8.0.0",
     
     # Async and concurrency
-    "asyncio-glib>=0.2",
+    "asyncio-glib>=0.1",
     "aiofiles>=23.0.0",
     
     # Logging and monitoring  
