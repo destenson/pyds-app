@@ -24,7 +24,13 @@ import json
 import tracemalloc
 import linecache
 import sys
-import resource
+try:
+    import resource
+    RESOURCE_AVAILABLE = True
+except ImportError:
+    # resource module not available on Windows
+    RESOURCE_AVAILABLE = False
+    resource = None
 
 try:
     import py_spy

@@ -12,12 +12,148 @@ from typing import Dict, List, Optional, Callable, Any, Set, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
 from threading import Lock
-import gi
-
-# CRITICAL: Initialize GStreamer before any imports
-gi.require_version('Gst', '1.0')
-gi.require_version('GObject', '2.0')
-from gi.repository import Gst, GObject, GLib
+# Try to import GStreamer dependencies with fallback
+try:
+    import gi
+    gi.require_version('Gst', '1.0')
+    gi.require_version('GObject', '2.0')
+    from gi.repository import Gst, GObject, GLib
+    GSTREAMER_AVAILABLE = True
+except (ImportError, ValueError):
+    # Mock objects for development without GStreamer
+    GSTREAMER_AVAILABLE = False
+    
+    class MockElement:
+        def __init__(self, name=None):
+            self.props = type('props', (), {})()
+            self.name = name
+            
+        def set_property(self, name, value):
+            setattr(self.props, name, value)
+            
+        def get_property(self, name):
+            return getattr(self.props, name, None)
+            
+        def link(self, other):
+            return True
+            
+        def get_static_pad(self, name):
+            return MockPad()
+            
+        def get_request_pad(self, name):
+            return MockPad()
+            
+        def add(self, element):
+            pass
+    
+    class MockBin(MockElement):
+        def __init__(self, name=None):
+            super().__init__(name)
+    
+    class MockPad:
+        def __init__(self):
+            pass
+            
+        def link(self, other):
+            return True
+    
+    class MockGstClass:
+        def __init__(self):
+            self.State = type('State', (), {
+                'NULL': 'null', 'READY': 'ready', 'PAUSED': 'paused', 'PLAYING': 'playing'
+            })()
+            self.StateChangeReturn = type('StateChangeReturn', (), {
+                'SUCCESS': 'success', 'ASYNC': 'async', 'FAILURE': 'failure'
+            })()
+            self.MessageType = type('MessageType', (), {
+                'ERROR': 'error', 'WARNING': 'warning', 'INFO': 'info', 'EOS': 'eos'
+            })()
+            self.PadProbeReturn = type('PadProbeReturn', (), {
+                'OK': 'ok', 'DROP': 'drop', 'REMOVE': 'remove'
+            })()
+            self.Pad = MockPad
+            self.Element = MockElement
+            self.Bin = MockBin
+            self.ElementFactory = type('ElementFactory', (), {
+                'make': staticmethod(lambda factory_name, element_name=None: MockElement(element_name))
+            })()
+        
+        def __getattr__(self, name):
+            # Return a generic mock class for any missing attribute
+            return type(name, (), {})
+        
+        def init(self, args=None):
+            pass
+            
+        def Pipeline(self, name=None):
+            return MockPipeline()
+    
+    class MockGObject:
+        @staticmethod
+        def timeout_add(interval, callback, *args):
+            return 1
+            
+        @staticmethod
+        def source_remove(source_id):
+            pass
+    
+    class MockGLib:
+        @staticmethod
+        def MainLoop():
+            return MockMainLoop()
+    
+    class MockPipeline:
+        def __init__(self):
+            self.state = 'null'
+            
+        def get_by_name(self, name):
+            return MockElement()
+            
+        def set_state(self, state):
+            return MockGst.StateChangeReturn.SUCCESS
+            
+        def get_state(self, timeout=None):
+            return (MockGst.StateChangeReturn.SUCCESS, self.state, 'pending')
+            
+        def get_bus(self):
+            return MockBus()
+            
+        def add(self, element):
+            pass
+            
+        def link(self, other):
+            return True
+    
+    class MockElement:
+        def __init__(self):
+            self.props = type('props', (), {})()
+            
+        def set_property(self, name, value):
+            setattr(self.props, name, value)
+            
+        def get_property(self, name):
+            return getattr(self.props, name, None)
+            
+        def link(self, other):
+            return True
+    
+    class MockBus:
+        def add_signal_watch(self):
+            pass
+            
+        def connect(self, signal, callback):
+            pass
+    
+    class MockMainLoop:
+        def run(self):
+            pass
+            
+        def quit(self):
+            pass
+    
+    Gst = MockGstClass()
+    GObject = MockGObject
+    GLib = MockGLib
 
 from ..config import AppConfig, SourceConfig
 from ..utils.errors import PipelineError, SourceError, DeepStreamError, handle_error, recovery_strategy
@@ -1083,3 +1219,15 @@ class PipelineManager:
         
         except Exception as e:
             self.logger.error(f"Error stopping PipelineManager: {e}")
+
+
+# Global pipeline manager instance
+_pipeline_manager: Optional[PipelineManager] = None
+
+
+def get_pipeline_manager() -> PipelineManager:
+    """Get global pipeline manager instance."""
+    global _pipeline_manager
+    if _pipeline_manager is None:
+        _pipeline_manager = PipelineManager()
+    return _pipeline_manager

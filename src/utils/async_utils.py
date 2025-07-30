@@ -747,3 +747,12 @@ def register_for_shutdown(name: str, component: Any):
 def add_shutdown_callback(callback: Callable):
     """Add a callback to be called during shutdown."""
     get_shutdown_manager().register_shutdown_callback(callback)
+
+
+async def graceful_shutdown():
+    """Perform graceful shutdown of all registered components."""
+    return await get_shutdown_manager().shutdown()
+
+
+# Aliases for backwards compatibility
+TaskManager = AsyncTaskManager

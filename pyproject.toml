@@ -51,6 +51,7 @@ dependencies = [
     # Logging and monitoring  
     "structlog>=23.1.0",
     "prometheus-client>=0.17.0",
+    "rich>=13.0.0",
 
     # Data validation and serialization
     "marshmallow>=3.19.0",

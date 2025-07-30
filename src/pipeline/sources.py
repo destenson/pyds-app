@@ -1118,5 +1118,13 @@ class VideoSourceManager:
             self.logger.error(f"Error stopping VideoSourceManager: {e}")
 
 
-# Add missing import
-import os
+# Global source manager instance
+_source_manager: Optional[VideoSourceManager] = None
+
+
+def get_source_manager() -> VideoSourceManager:
+    """Get global source manager instance."""
+    global _source_manager
+    if _source_manager is None:
+        _source_manager = VideoSourceManager()
+    return _source_manager

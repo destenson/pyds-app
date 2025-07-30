@@ -34,6 +34,15 @@ class ErrorCategory(Enum):
     GSTREAMER = "gstreamer"
 
 
+class RecoveryAction(Enum):
+    """Actions that can be taken to recover from errors."""
+    RETRY = "retry"
+    RESTART = "restart"
+    SKIP = "skip"
+    FAIL = "fail"
+    RESET = "reset"
+
+
 class PyDSError(Exception):
     """
     Base exception class for all PyDS application errors.
@@ -254,6 +263,17 @@ class AlertError(PyDSError):
         super().__init__(message, **kwargs)
 
 
+class ApplicationError(PyDSError):
+    """General application-level errors."""
+    
+    def __init__(self, message: str, **kwargs):
+        kwargs.setdefault('category', ErrorCategory.SYSTEM)
+        kwargs.setdefault('severity', ErrorSeverity.HIGH)
+        kwargs.setdefault('recoverable', False)
+        
+        super().__init__(message, **kwargs)
+
+
 class MonitoringError(PyDSError):
     """Errors related to monitoring and metrics collection."""
     
@@ -265,6 +285,38 @@ class MonitoringError(PyDSError):
         context = kwargs.get('context', {})
         if metric_name:
             context['metric_name'] = metric_name
+        kwargs['context'] = context
+        
+        super().__init__(message, **kwargs)
+
+
+class HealthError(PyDSError):
+    """Errors related to health monitoring and checks."""
+    
+    def __init__(self, message: str, component_name: Optional[str] = None, **kwargs):
+        kwargs.setdefault('category', ErrorCategory.MONITORING)
+        kwargs.setdefault('severity', ErrorSeverity.MEDIUM)
+        kwargs.setdefault('recoverable', True)
+        
+        context = kwargs.get('context', {})
+        if component_name:
+            context['component_name'] = component_name
+        kwargs['context'] = context
+        
+        super().__init__(message, **kwargs)
+
+
+class ProfilingError(PyDSError):
+    """Errors related to performance profiling."""
+    
+    def __init__(self, message: str, profiler_name: Optional[str] = None, **kwargs):
+        kwargs.setdefault('category', ErrorCategory.MONITORING)
+        kwargs.setdefault('severity', ErrorSeverity.LOW)
+        kwargs.setdefault('recoverable', True)
+        
+        context = kwargs.get('context', {})
+        if profiler_name:
+            context['profiler_name'] = profiler_name
         kwargs['context'] = context
         
         super().__init__(message, **kwargs)

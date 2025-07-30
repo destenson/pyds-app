@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional, Union, Tuple, NamedTuple
 from pathlib import Path
 
 import numpy as np
-from pydantic import BaseModel, Field, validator, root_validator
+from pydantic import BaseModel, Field, field_validator, root_validator
 
 
 class DetectionClass(str, Enum):
@@ -244,14 +244,16 @@ class VideoDetection(BaseModel):
             BoundingBox: lambda bb: bb.to_dict()
         }
     
-    @validator('pattern_name')
+    @field_validator('pattern_name')
+    @classmethod
     def validate_pattern_name(cls, v):
         """Validate pattern name is not empty."""
         if not v or not v.strip():
             raise ValueError("Pattern name cannot be empty")
         return v.strip()
     
-    @validator('source_id')
+    @field_validator('source_id')
+    @classmethod
     def validate_source_id(cls, v):
         """Validate source ID is not empty."""
         if not v or not v.strip():

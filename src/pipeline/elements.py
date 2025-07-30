@@ -10,11 +10,33 @@ from typing import Dict, List, Optional, Any, Tuple, Union, Set
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-import gi
-
-# CRITICAL: Initialize GStreamer before imports
-gi.require_version('Gst', '1.0')
-from gi.repository import Gst, GObject
+# Try to import GStreamer dependencies with fallback
+try:
+    import gi
+    gi.require_version('Gst', '1.0')
+    from gi.repository import Gst, GObject
+    GSTREAMER_AVAILABLE = True
+except (ImportError, ValueError):
+    # Mock GStreamer for development without actual installation
+    GSTREAMER_AVAILABLE = False
+    
+    class MockElement:
+        def __init__(self, name=None):
+            self.props = type('props', (), {})()
+            self.name = name
+    
+    class MockGstClass:
+        def __init__(self):
+            self.Element = MockElement
+        
+        def __getattr__(self, name):
+            return type(name, (), {})
+    
+    class MockGObject:
+        pass
+    
+    Gst = MockGstClass()
+    GObject = MockGObject()
 
 from ..config import AppConfig, PipelineConfig, DetectionConfig
 from ..utils.errors import DeepStreamError, PipelineError, handle_error

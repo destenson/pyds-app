@@ -13,7 +13,7 @@ from typing import Any, Dict, Optional, Union, List, Type, get_type_hints
 from dataclasses import dataclass, field, fields
 from enum import Enum
 import yaml
-from pydantic import BaseModel, ValidationError, validator, Field
+from pydantic import BaseModel, ValidationError, field_validator, model_validator, Field
 from pydantic.dataclasses import dataclass as pydantic_dataclass
 import logging
 
@@ -60,15 +60,16 @@ class PipelineConfig:
     gpu_id: int = Field(default=0, ge=0, le=7, description="GPU device ID to use")
     batch_timeout_us: int = Field(default=40000, ge=1000, le=1000000, description="Batch timeout in microseconds")
     enable_gpu_inference: bool = Field(default=True, description="Enable GPU acceleration for inference")
-    memory_type: str = Field(default="device", regex="^(device|unified|pinned)$", description="Memory type for GPU buffers")
+    memory_type: str = Field(default="device", pattern="^(device|unified|pinned)$", description="Memory type for GPU buffers")
     num_decode_surfaces: int = Field(default=16, ge=4, le=64, description="Number of decode surfaces")
-    processing_mode: str = Field(default="batch", regex="^(batch|single)$", description="Processing mode")
+    processing_mode: str = Field(default="batch", pattern="^(batch|single)$", description="Processing mode")
     
-    @validator('width', 'height')
-    def validate_dimensions(cls, v, field):
+    @field_validator('width', 'height')
+    @classmethod
+    def validate_dimensions(cls, v):
         """Ensure dimensions are multiples of 16 for GPU efficiency."""
         if v % 16 != 0:
-            raise ValueError(f"{field.name} must be a multiple of 16 for GPU efficiency")
+            raise ValueError(f"Dimension must be a multiple of 16 for GPU efficiency")
         return v
 
 
@@ -85,9 +86,10 @@ class DetectionConfig:
     input_shape: List[int] = Field(default_factory=lambda: [3, 608, 608], description="Model input shape [C, H, W]")
     output_layers: List[str] = Field(default_factory=lambda: ["output"], description="Model output layer names")
     batch_inference: bool = Field(default=True, description="Enable batch inference")
-    tensor_rt_precision: str = Field(default="fp16", regex="^(fp32|fp16|int8)$", description="TensorRT precision mode")
+    tensor_rt_precision: str = Field(default="fp16", pattern="^(fp32|fp16|int8)$", description="TensorRT precision mode")
     
-    @validator('input_shape')
+    @field_validator('input_shape')
+    @classmethod
     def validate_input_shape(cls, v):
         """Validate input shape format."""
         if len(v) != 3:
@@ -131,7 +133,7 @@ class MonitoringConfig:
 class LoggingConfig:
     """Logging configuration."""
     level: LogLevel = Field(default=LogLevel.INFO, description="Logging level")
-    format: str = Field(default="json", regex="^(json|text|colored)$", description="Log format")
+    format: str = Field(default="json", pattern="^(json|text|colored)$", description="Log format")
     include_metrics: bool = Field(default=True, description="Include performance metrics in logs")
     log_file: Optional[str] = Field(default=None, description="Path to log file")
     max_file_size_mb: int = Field(default=100, ge=1, le=1000, description="Maximum log file size (MB)")
@@ -170,31 +172,32 @@ class SourceConfig:
     timeout: int = Field(default=30, ge=5, le=300, description="Connection timeout (seconds)")
     parameters: Dict[str, Any] = Field(default_factory=dict, description="Source-specific parameters")
     
-    @validator('uri')
-    def validate_uri(cls, v, values):
+    @model_validator(mode='after')
+    def validate_uri_type_match(self):
         """Validate URI format based on source type."""
-        source_type = values.get('type')
+        source_type = self.type
+        uri = self.uri
         
-        if source_type == SourceType.RTSP and not v.startswith(('rtsp://', 'rtsps://')):
+        if source_type == SourceType.RTSP and not uri.startswith(('rtsp://', 'rtsps://')):
             raise ValueError("RTSP source URI must start with rtsp:// or rtsps://")
-        elif source_type == SourceType.HTTP and not v.startswith(('http://', 'https://')):
+        elif source_type == SourceType.HTTP and not uri.startswith(('http://', 'https://')):
             raise ValueError("HTTP source URI must start with http:// or https://")
-        elif source_type == SourceType.FILE and not (v.startswith('file://') or Path(v).exists()):
-            if not v.startswith('file://'):
+        elif source_type == SourceType.FILE and not (uri.startswith('file://') or Path(uri).exists()):
+            if not uri.startswith('file://'):
                 # Check if it's a valid file path
-                path = Path(v)
+                path = Path(uri)
                 if not path.exists() and not path.is_absolute():
-                    raise ValueError(f"File source URI must be a valid file path or start with file://: {v}")
+                    raise ValueError(f"File source URI must be a valid file path or start with file://: {uri}")
         elif source_type == SourceType.WEBCAM:
             try:
-                device_id = int(v)
+                device_id = int(uri)
                 if device_id < 0:
                     raise ValueError("Webcam device ID must be non-negative")
             except ValueError:
-                if not v.startswith('/dev/video'):
+                if not uri.startswith('/dev/video'):
                     raise ValueError("Webcam URI must be a device ID (0, 1, 2...) or device path (/dev/video*)")
         
-        return v
+        return self
 
 
 @pydantic_dataclass
@@ -212,7 +215,7 @@ class AppConfig:
     name: str = Field(default="PyDS Video Analytics", description="Application name")
     version: str = Field(default="0.1.0", description="Application version")
     debug: bool = Field(default=False, description="Enable debug mode")
-    environment: str = Field(default="development", regex="^(development|staging|production)$", description="Environment")
+    environment: str = Field(default="development", pattern="^(development|staging|production)$", description="Environment")
     
     # Sources configuration
     sources: List[SourceConfig] = Field(default_factory=list, description="Video sources configuration")
@@ -225,7 +228,8 @@ class AppConfig:
     # Custom configuration extensions
     extensions: Dict[str, Any] = Field(default_factory=dict, description="Custom configuration extensions")
     
-    @validator('sources')
+    @field_validator('sources')
+    @classmethod
     def validate_sources(cls, v):
         """Validate sources configuration."""
         if not v:
@@ -672,6 +676,34 @@ def validate_config_file(config_path: Union[str, Path]) -> List[str]:
         
     except Exception as e:
         return [f"Failed to load configuration file: {e}"]
+
+
+def validate_config(config: AppConfig) -> List[str]:
+    """
+    Validate a configuration object.
+    
+    Args:
+        config: Configuration object to validate
+        
+    Returns:
+        List of validation errors (empty if valid)
+    """
+    temp_manager = ConfigManager()
+    temp_manager._config = config
+    return temp_manager.validate_config()
+
+
+def save_config(config: AppConfig, config_path: Union[str, Path]) -> None:
+    """
+    Save configuration to file using global manager.
+    
+    Args:
+        config: Configuration to save
+        config_path: Path to save configuration file
+    """
+    temp_manager = ConfigManager()
+    temp_manager._config = config
+    temp_manager.save_config(config_path)
 
 
 def create_default_config(output_path: Union[str, Path]) -> None:
