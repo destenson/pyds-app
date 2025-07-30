@@ -170,7 +170,7 @@ class ConfigManager:
         """Load default configuration."""
         return {
             "application": {
-                "name": "VideoAnalyticsScript",
+                "name": "VideoAnalytics",
                 "version": "1.0.0",
                 "debug": False
             },

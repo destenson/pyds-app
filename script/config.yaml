@@ -1,8 +1,8 @@
-# Video Analytics Script Configuration
+# Video Analytics Configuration
 # This configuration supports the standalone video analytics script
 
 application:
-  name: "VideoAnalyticsScript"
+  name: "VideoAnalytics"
   version: "1.0.0"
   debug: false
 

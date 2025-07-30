@@ -1,0 +1,96 @@
+# YOLO Configuration for DeepStream nvinfer element
+# This is a sample configuration file for YOLO v5/v7/v8 models
+
+[property]
+# GPU device ID to use
+gpu-id=0
+
+# TensorRT engine file (will be generated from ONNX if not exists)
+model-engine-file=models/yolo.engine
+
+# ONNX model file
+onnx-file=models/yolo.onnx
+
+# Batch size for inference
+batch-size=4
+
+# Network input dimensions
+network-mode=0
+model-color-format=0
+network-input-width=640
+network-input-height=640
+network-input-channels=3
+
+# Processing interval (process every Nth frame)
+interval=0
+
+# Output tensor names
+output-tensor-names=output0
+output-blob-names=output0
+
+# Clustering and NMS parameters
+cluster-mode=2
+maintain-aspect-ratio=1
+symmetric-padding=1
+nms-iou-threshold=0.45
+pre-cluster-threshold=0.25
+
+# Custom library for YOLO post-processing
+# custom-lib-path=/path/to/libnvdsinfer_custom_impl_Yolo.so
+# parse-bbox-func-name=NvDsInferParseYolo
+
+# Labels file
+labelfile-path=models/coco.names
+
+# Number of classes
+num-detected-classes=80
+
+# Per-class detection parameters
+# class-attrs-all {
+#   pre-cluster-threshold=0.25
+#   nms-iou-threshold=0.45
+#   topk=300
+# }
+
+[class-attrs-0]
+# Person class specific parameters
+pre-cluster-threshold=0.25
+nms-iou-threshold=0.45
+topk=20
+
+[class-attrs-2]
+# Car class specific parameters  
+pre-cluster-threshold=0.25
+nms-iou-threshold=0.45
+topk=20
+
+# Performance optimization
+[property]
+# Use DLA (Deep Learning Accelerator) if available
+# use-dla=0
+# dla-core=0
+
+# INT8 calibration
+# int8-calib-file=models/calibration.table
+
+# TensorRT optimization
+# workspace-size=2048
+
+# Input preprocessing
+# mean-file=
+# offsets=0;0;0
+
+# Scale factor
+# net-scale-factor=0.00392156862745098
+
+# Model precision (0: FP32, 1: INT8, 2: FP16)
+# network-type=0
+
+# Output parsing
+# output-io-formats=output0:0
+
+# Confidence threshold
+# classifier-threshold=0.5
+
+# Maximum objects per frame
+# max-batch-size=4

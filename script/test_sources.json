@@ -1,0 +1,28 @@
+{
+  "sources": [
+    {
+      "id": "test_file_1",
+      "type": "file",
+      "uri": "sample_videos/test1.mp4",
+      "enabled": true,
+      "confidence_threshold": 0.5,
+      "max_objects": 50
+    },
+    {
+      "id": "test_rtsp_1", 
+      "type": "rtsp",
+      "uri": "rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mp4",
+      "enabled": true,
+      "confidence_threshold": 0.6,
+      "max_objects": 30
+    },
+    {
+      "id": "test_webcam_1",
+      "type": "webcam",
+      "uri": "/dev/video0",
+      "enabled": false,
+      "confidence_threshold": 0.7,
+      "max_objects": 20
+    }
+  ]
+}
