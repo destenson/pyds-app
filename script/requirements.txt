@@ -1,0 +1,35 @@
+# Video Analytics Script Dependencies
+# Core dependencies for standalone video analytics with GStreamer and YOLO
+
+# Web API Framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.4.0
+
+# Computer Vision and Image Processing
+opencv-python>=4.8.0
+numpy>=1.24.0
+
+# Configuration and Data Handling
+PyYAML>=6.0
+python-multipart>=0.0.6
+
+# System Monitoring
+psutil>=5.9.0
+
+# DeepStream Python Bindings (if available separately)
+# Note: Usually comes with DeepStream installation
+# pyds  # Uncomment if available as standalone package
+
+# Optional: Enhanced logging and monitoring
+structlog>=23.1.0
+prometheus-client>=0.17.0
+
+# Development and Testing (optional)
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+black>=23.7.0
+ruff>=0.0.287
+
+# Optional: Additional video codec support
+# av>=10.0.0  # PyAV for additional video format support

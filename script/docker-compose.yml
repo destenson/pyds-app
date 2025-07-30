@@ -1,0 +1,128 @@
+# Docker Compose configuration for Video Analytics Script
+# Supports both development and production deployments
+
+version: '3.8'
+
+services:
+  video-analytics:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: video-analytics-app
+    restart: unless-stopped
+    
+    # GPU access for NVIDIA runtime
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu, compute, utility, video]
+    
+    # Environment variables
+    environment:
+      - VA_DEBUG=false
+      - VA_API_PORT=8080
+      - VA_API_HOST=0.0.0.0
+      - VA_LOG_LEVEL=INFO
+      - VA_GPU_DEVICE=0
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility,video
+    
+    # Port mapping
+    ports:
+      - "8080:8080"  # API server
+    
+    # Volume mounts
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - ./models:/app/models:ro
+      - ./sample_videos:/app/sample_videos:ro
+      - ./logs:/app/logs
+      - ./data:/app/data
+      # Mount device for webcam access (Linux)
+      - /dev/video0:/dev/video0
+    
+    # Network configuration
+    networks:
+      - video-analytics-net
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+    
+    # Memory and CPU limits
+    mem_limit: 4g
+    cpus: '2.0'
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+  # Optional: Redis for caching and session management
+  redis:
+    image: redis:7-alpine
+    container_name: video-analytics-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - video-analytics-net
+    profiles:
+      - full-stack
+
+  # Optional: Prometheus for metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: video-analytics-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - video-analytics-net
+    profiles:
+      - monitoring
+
+  # Optional: Grafana for metrics visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: video-analytics-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana:/etc/grafana/provisioning:ro
+    networks:
+      - video-analytics-net
+    profiles:
+      - monitoring
+
+networks:
+  video-analytics-net:
+    driver: bridge
+
+volumes:
+  redis-data:
+  prometheus-data:
+  grafana-data:

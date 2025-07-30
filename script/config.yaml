@@ -1,0 +1,107 @@
+# Video Analytics Script Configuration
+# This configuration supports the standalone video analytics script
+
+application:
+  name: "VideoAnalyticsScript"
+  version: "1.0.0"
+  debug: false
+
+# GStreamer Pipeline Configuration
+pipeline:
+  batch_size: 4                    # Number of streams to batch together
+  batch_timeout_ms: 40             # Timeout for batch completion
+  max_sources: 16                  # Maximum number of video sources
+  gpu_device_id: 0                 # GPU device ID for CUDA operations
+  memory_type: "nvmm"              # Memory type for zero-copy operations
+
+# YOLO Detection Configuration  
+detection:
+  model_path: "models/yolo.engine"         # Path to TensorRT optimized YOLO model
+  config_path: "models/yolo_config.txt"    # Path to YOLO configuration file
+  confidence_threshold: 0.5                # Minimum confidence for detections
+  nms_threshold: 0.4                       # Non-maximum suppression threshold
+  max_objects: 50                          # Maximum objects per frame
+  
+  # Supported model types
+  supported_models:
+    - "yolov5"
+    - "yolov7" 
+    - "yolov8"
+  
+  # Class filtering (empty means all classes)
+  enabled_classes: []
+
+# REST API Configuration
+api:
+  host: "0.0.0.0"                 # API server host
+  port: 8080                      # API server port
+  cors_enabled: true              # Enable CORS for web clients
+  max_request_size_mb: 10         # Maximum request size
+  
+  # API rate limiting
+  rate_limit:
+    requests_per_minute: 60
+    burst_limit: 10
+
+# Logging Configuration
+logging:
+  level: "INFO"                   # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  format: "json"                  # "json" or "text"
+  file: "video_analytics.log"     # Log file path
+  max_size_mb: 100               # Maximum log file size
+  backup_count: 5                # Number of backup log files
+  
+  # Structured logging fields
+  include_fields:
+    - "timestamp"
+    - "level"
+    - "message"
+    - "source_id"
+    - "frame_number"
+    - "processing_time_ms"
+
+# Health Monitoring Configuration
+monitoring:
+  health_check_interval: 30       # Health check interval (seconds)
+  metrics_interval: 60           # Metrics collection interval (seconds)
+  auto_recovery: true            # Enable automatic error recovery
+  
+  # Performance thresholds
+  thresholds:
+    max_memory_mb: 2048          # Maximum memory usage
+    max_cpu_percent: 80          # Maximum CPU usage
+    min_fps: 20                  # Minimum processing FPS
+    max_latency_ms: 200          # Maximum processing latency
+
+# Error Recovery Configuration
+recovery:
+  max_retry_attempts: 3          # Maximum retry attempts for failed operations
+  retry_delay_seconds: 5         # Delay between retry attempts
+  pipeline_restart_threshold: 5  # Number of errors before pipeline restart
+  source_timeout_seconds: 30     # Timeout for source reconnection
+
+# Default Video Sources (can be managed via API)
+sources:
+  - id: "demo_webcam"
+    type: "webcam"
+    uri: "/dev/video0"             # Linux webcam
+    enabled: false
+    confidence_threshold: 0.6
+    max_objects: 20
+    
+  - id: "demo_file"
+    type: "file"
+    uri: "sample_videos/demo.mp4"
+    enabled: false
+    confidence_threshold: 0.5
+    max_objects: 30
+
+# Docker Configuration (for containerized deployment)
+docker:
+  base_image: "nvcr.io/nvidia/deepstream:6.3-devel"
+  gpu_required: true
+  memory_limit: "4g"
+  environment_variables:
+    - "CUDA_VISIBLE_DEVICES=0"
+    - "NVIDIA_VISIBLE_DEVICES=all"
+    - "NVIDIA_DRIVER_CAPABILITIES=compute,utility,video"
