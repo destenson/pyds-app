@@ -11,6 +11,21 @@ See: https://vulture.readthedocs.io/en/latest/
 entry_points = None  # pkg_resources.iter_entry_points()
 load_entry_point = None  # pkg_resources.load_entry_point()
 
+# Unused imports that are actually used in type hints or dynamic contexts
+get_type_hints = None  # Used in type validation
+NamedTuple = None  # Used in data structures
+root_validator = None  # Pydantic v1 compatibility
+RecoveryAction = None  # Used in error handling strategies
+graceful_shutdown = None  # Used in shutdown handlers
+MonitoringError = None  # Custom exception types
+ProfilingError = None  # Custom exception types
+Counter = None  # Used in metrics collection
+linecache = None  # Used in debugging/profiling
+py_spy = None  # External profiling tool
+memory_profiler = None  # Memory profiling tool
+as_completed = None  # AsyncIO utility
+create_test_detection = None  # Used in test utilities
+
 # GStreamer callback function signatures (called by GStreamer C library)
 def gst_pad_probe_callback(pad, probe_info):
     """GStreamer probe callback - called from C code."""

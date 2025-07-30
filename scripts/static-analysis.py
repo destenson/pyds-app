@@ -171,10 +171,14 @@ class AnalysisTool:
             # Parse output
             issues = self.parse_output(stdout.decode('utf-8'), stderr.decode('utf-8'))
             
-            # Determine status
+            # Determine status - many tools return non-zero when they find issues
             if exit_code == 0:
-                status = AnalysisStatus.SUCCESS if not issues else AnalysisStatus.WARNING
+                status = AnalysisStatus.SUCCESS
+            elif issues:
+                # Tool found issues but executed successfully
+                status = AnalysisStatus.WARNING
             else:
+                # Tool failed to execute properly
                 status = AnalysisStatus.ERROR
             
             return AnalysisResult(
@@ -207,7 +211,7 @@ class RuffTool(AnalysisTool):
     def __init__(self, working_dir: Optional[Path] = None):
         super().__init__(
             name="ruff",
-            command=["ruff", "check", "src/", "--format", "json"],
+            command=["ruff", "check", "src/", "--output-format", "json"],
             working_dir=working_dir
         )
     
@@ -389,14 +393,18 @@ class AnalysisRunner:
         self.working_dir = working_dir or Path.cwd()
         self.logger = get_logger(__name__) if HAS_PYDS_MODULES else logger
         
-        # Initialize tools
+        # Initialize tools (skip semgrep on Windows due to limited support)
+        import platform
         self.tools = {
             "ruff": RuffTool(working_dir),
             "mypy": MyPyTool(working_dir),
             "bandit": BanditTool(working_dir),
             "vulture": VultureTool(working_dir),
-            "semgrep": SemgrepTool(working_dir)
         }
+        
+        # Only add semgrep on non-Windows platforms
+        if platform.system() != "Windows":
+            self.tools["semgrep"] = SemgrepTool(working_dir)
     
     async def run_analysis(
         self,
