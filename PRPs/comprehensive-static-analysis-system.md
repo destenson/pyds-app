@@ -157,66 +157,43 @@ pyds-app/
 ```
 
 ### Known Gotchas of Our Codebase & Library Quirks
-```python
-# CRITICAL: GStreamer imports are conditionally mocked
-# Static analysis must handle both real and mock imports
-# See src/pipeline/manager.py lines 15-25 for pattern
 
-# CRITICAL: Pydantic v2 syntax throughout codebase
-# Use @field_validator with @classmethod, not @validator
-# Pattern in src/config.py and src/detection/models.py
+**CRITICAL: GStreamer imports are conditionally mocked**
+- Static analysis must handle both real and mock imports
+- See src/pipeline/manager.py lines 15-25 for pattern
 
-# CRITICAL: AsyncIO patterns with GStreamer callbacks
-# Type checkers struggle with GStreamer callback signatures
-# Need custom type stubs or ignores for gi.repository
+**CRITICAL: Pydantic v2 syntax throughout codebase**
+- Use @field_validator with @classmethod, not @validator
+- Pattern in src/config.py and src/detection/models.py
 
-# CRITICAL: Dynamic plugin loading for detection strategies
-# Vulture will flag legitimate dynamic imports as dead code
-# Need whitelist for entry_points and plugin discovery
+**CRITICAL: AsyncIO patterns with GStreamer callbacks**
+- Type checkers struggle with GStreamer callback signatures
+- Need custom type stubs or ignores for gi.repository
 
-# CRITICAL: Optional dependencies (DeepStream, CUDA)
-# Analysis must work in environments without GPU/DeepStream
-# Pattern: try/except ImportError with AVAILABLE flags
+**CRITICAL: Dynamic plugin loading for detection strategies**
+- Vulture will flag legitimate dynamic imports as dead code
+- Need whitelist for entry_points and plugin discovery
 
-# CRITICAL: Rich console output with ANSI codes
-# Security scanners may flag format strings incorrectly
-# Need baseline for Rich library usage patterns
+**CRITICAL: Optional dependencies (DeepStream, CUDA)**
+- Analysis must work in environments without GPU/DeepStream
+- Pattern: try/except ImportError with AVAILABLE flags
 
-# CRITICAL: Windows/Linux compatibility
-# Some tools (resource module) are Unix-only
-# Analysis setup must handle platform differences
-```
+**CRITICAL: Rich console output with ANSI codes**
+- Security scanners may flag format strings incorrectly
+- Need baseline for Rich library usage patterns
+
+**CRITICAL: Windows/Linux compatibility**
+- Some tools (resource module) are Unix-only
+- Analysis setup must handle platform differences
 
 ## Implementation Blueprint
 
 ### Data Models and Structure
-```python
-# Analysis result aggregation models
-@dataclass
-class AnalysisResult:
-    tool: str
-    status: str  # "pass", "fail", "warning"
-    issues: List[Issue]
-    execution_time: float
-    file_count: int
 
-@dataclass 
-class Issue:
-    severity: str  # "error", "warning", "info"
-    category: str  # "security", "quality", "type", "deadcode"
-    file_path: str
-    line_number: int
-    description: str
-    rule_id: str
-    suggested_fix: Optional[str]
-
-@dataclass
-class AnalysisReport:
-    timestamp: datetime
-    results: List[AnalysisResult]
-    summary: AnalysisSummary
-    baseline_diff: Optional[BaselineDiff]
-```
+Core data structures for analysis result aggregation:
+- AnalysisResult: Contains tool execution results with status, issues, timing, and file count
+- Issue: Individual analysis findings with severity, category, location, and fix suggestions  
+- AnalysisReport: Complete analysis session with timestamp, results, summary, and baseline comparison
 
 ### List of Tasks to Complete (in order)
 
@@ -286,19 +263,28 @@ CREATE scripts/security-scan.py:
   - CONFIGURE for both CI and developer use
   - ADD integration with security baseline
 
-Task 7: "Create quality reporting dashboard"
+Task 7: "Implement coverage analysis and dead code correlation"
+CREATE scripts/coverage-analysis.py:
+  - COMBINE test coverage data with dead code detection
+  - IMPLEMENT coverage trend tracking over time
+  - IDENTIFY code that is both untested and potentially unused
+  - GENERATE coverage diff reports for PRs
+  - CREATE coverage quality gates (fail below thresholds)
+
+Task 8: "Create quality reporting dashboard"
 CREATE scripts/quality-report.py:
   - GENERATE HTML dashboard with all tool results
   - IMPLEMENT trend analysis over time
-  - ADD code coverage integration with pytest-cov
+  - INTEGRATE coverage metrics and dead code correlation
   - CREATE maintainability metrics visualization
   - IMPLEMENT email/Slack notifications for critical issues
 
-Task 8: "Setup GitHub Actions CI integration"
+Task 9: "Setup GitHub Actions CI integration"
 CREATE .github/workflows/static-analysis.yml:
   - TRIGGER on pull requests and main branch pushes
   - RUN full analysis suite with caching
   - IMPLEMENT quality gates (fail on security/type errors)
+  - INCLUDE coverage analysis and trending
   - UPLOAD analysis reports as artifacts
   - ADD PR comments with analysis summary
 
@@ -308,7 +294,7 @@ CREATE .github/workflows/security-scan.yml:
   - ADD alerts for new critical vulnerabilities
   - INTEGRATE with GitHub Security tab
 
-Task 9: "Create development environment setup"
+Task 10: "Create development environment setup"
 CREATE scripts/setup-analysis.py:
   - INSTALL and configure all analysis tools
   - SETUP pre-commit hooks automatically
@@ -316,7 +302,7 @@ CREATE scripts/setup-analysis.py:
   - VALIDATE tool configurations
   - CREATE developer onboarding documentation
 
-Task 10: "Implement advanced type checking enhancements"
+Task 11: "Implement advanced type checking enhancements"
 MODIFY pyproject.toml [tool.mypy]:
   - ADD strict mode configurations
   - CONFIGURE incremental mode for performance
@@ -325,73 +311,33 @@ MODIFY pyproject.toml [tool.mypy]:
   - ADD plugin configurations for pydantic and pytest
 ```
 
-### Per Task Pseudocode
+### Implementation Approach
 
-```python
-# Task 5: Unified Analysis Runner
-class AnalysisRunner:
-    def __init__(self, config_path: str = "pyproject.toml"):
-        # PATTERN: Load configuration using existing config patterns
-        self.config = load_analysis_config(config_path)
-        self.tools = self._initialize_tools()
-    
-    async def run_all_analysis(self, paths: List[str]) -> AnalysisReport:
-        """Run all configured analysis tools in parallel"""
-        # PATTERN: Use async task management from src/utils/async_utils.py
-        tasks = []
-        for tool in self.tools:
-            task = asyncio.create_task(self._run_tool(tool, paths))
-            tasks.append(task)
-        
-        # CRITICAL: Handle tool failures gracefully
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        
-        # PATTERN: Use error handling from src/utils/errors.py
-        return self._aggregate_results(results)
+Key implementation patterns and considerations:
 
-# Task 6: Security Analysis
-class SecurityScanner:
-    def __init__(self):
-        self.bandit = BanditScanner()
-        self.semgrep = SemgrepScanner() 
-        self.secrets = SecretsScanner()
-        self.deps = DependencyScanner()
-    
-    async def comprehensive_scan(self, paths: List[str]) -> SecurityReport:
-        """Run all security tools and combine results"""
-        # CRITICAL: Security tools must run in isolation
-        # Some tools modify file system (semgrep --autofix)
-        
-        # PATTERN: Use performance context from src/utils/logging.py
-        with performance_context("security_scan"):
-            security_results = await asyncio.gather(
-                self.bandit.scan(paths),
-                self.semgrep.scan(paths, rules=self.custom_rules),
-                self.secrets.scan(paths),
-                self.deps.scan_dependencies()
-            )
-        
-        return self._prioritize_by_severity(security_results)
+**Task 5 - Unified Analysis Runner:**
+- Load configuration using existing config patterns from src/config.py
+- Use async task management for parallel tool execution
+- Implement graceful error handling for tool failures
+- Aggregate results with proper exception handling
 
-# Task 7: Quality Report Generation  
-class QualityReporter:
-    def generate_html_report(self, analysis_report: AnalysisReport) -> str:
-        """Generate comprehensive HTML dashboard"""
-        # PATTERN: Use Rich console for beautiful output (see main.py)
-        
-        # CRITICAL: HTML output must be XSS-safe
-        # Escape all file paths and code snippets
-        template = self._load_template("dashboard.html")
-        
-        context = {
-            "summary": analysis_report.summary,
-            "issues_by_severity": self._group_by_severity(analysis_report),
-            "trends": self._calculate_trends(analysis_report),
-            "coverage": self._get_coverage_data()
-        }
-        
-        return template.render(**context)
-```
+**Task 6 - Security Analysis:**
+- Run security tools in isolation to prevent interference
+- Combine bandit, semgrep, secrets scanning, and dependency analysis
+- Use performance context from existing logging infrastructure
+- Prioritize results by severity for actionable reporting
+
+**Task 7 - Coverage Analysis:**
+- Correlate test coverage data with dead code detection results
+- Identify high-confidence dead code (0% coverage + flagged by vulture)
+- Generate recommendations for code removal with confidence scoring
+- Track coverage trends over time for quality monitoring
+
+**Task 8 - Quality Report Generation:**
+- Generate comprehensive HTML dashboard with all analysis results
+- Ensure XSS-safe output by escaping file paths and code snippets
+- Use existing Rich console patterns for beautiful terminal output
+- Include coverage metrics and dead code correlation in reports
 
 ### Integration Points
 ```yaml
