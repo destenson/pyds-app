@@ -1,0 +1,392 @@
+# Security Scanning CI Pipeline
+# Scheduled security scans and dependency vulnerability checks
+# Integrates with GitHub Security tab
+
+name: Security Scan
+
+on:
+  schedule:
+    # Run daily at 6 AM UTC
+    - cron: '0 6 * * *'
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - 'requirements*.txt'
+  pull_request:
+    paths:
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - 'requirements*.txt'
+  workflow_dispatch:  # Allow manual trigger
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  dependency-scan:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install uv
+      run: curl -LsSf https://astral.sh/uv/install.sh | sh
+    
+    - name: Install dependencies
+      run: uv sync --extra dev
+    
+    - name: Run Safety dependency scan
+      run: |
+        uv run safety check --json --output analysis/reports/safety-results.json || true
+        uv run safety check
+      continue-on-error: true
+    
+    - name: Run pip-audit dependency scan
+      run: |
+        uv run pip-audit --format=json --output=analysis/reports/pip-audit-results.json || true
+        uv run pip-audit
+      continue-on-error: true
+    
+    - name: Run comprehensive security scan
+      run: |
+        mkdir -p analysis/reports
+        uv run python scripts/security-scan.py --all --output analysis/reports/security-comprehensive.json
+    
+    - name: Upload security reports
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-scan-reports
+        path: analysis/reports/
+        retention-days: 90  # Keep security reports longer
+    
+    - name: Parse security results for GitHub Security tab
+      if: always()
+      run: |
+        python3 << 'EOF'
+        import json
+        from pathlib import Path
+        import datetime
+        
+        # Convert our security report to SARIF format for GitHub Security tab
+        sarif_output = {
+            "version": "2.1.0",
+            "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+            "runs": []
+        }
+        
+        security_file = Path('analysis/reports/security-comprehensive.json')
+        if security_file.exists():
+            with open(security_file) as f:
+                security_data = json.load(f)
+            
+            run = {
+                "tool": {
+                    "driver": {
+                        "name": "PyDS Security Scanner",
+                        "version": "1.0.0",
+                        "informationUri": "https://github.com/your-org/pyds-app"
+                    }
+                },
+                "results": []
+            }
+            
+            for issue in security_data.get('issues', []):
+                # Map severity to SARIF level
+                severity_map = {
+                    'critical': 'error',
+                    'high': 'error', 
+                    'medium': 'warning',
+                    'low': 'note',
+                    'info': 'note'
+                }
+                
+                result = {
+                    "ruleId": issue.get('rule_id', 'unknown'),
+                    "level": severity_map.get(issue.get('severity', 'medium'), 'warning'),
+                    "message": {
+                        "text": issue.get('description', issue.get('title', 'Security issue'))
+                    }
+                }
+                
+                if issue.get('file_path'):
+                    result["locations"] = [{
+                        "physicalLocation": {
+                            "artifactLocation": {
+                                "uri": issue['file_path']
+                            }
+                        }
+                    }]
+                    
+                    if issue.get('line'):
+                        result["locations"][0]["physicalLocation"]["region"] = {
+                            "startLine": issue['line']
+                        }
+                
+                run["results"].append(result)
+            
+            sarif_output["runs"].append(run)
+        
+        # Write SARIF output
+        with open('security-results.sarif', 'w') as f:
+            json.dump(sarif_output, f, indent=2)
+        
+        print(f"Generated SARIF report with {len(sarif_output['runs'][0]['results']) if sarif_output['runs'] else 0} security findings")
+        EOF
+    
+    - name: Upload SARIF results to GitHub Security tab
+      if: always()
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: security-results.sarif
+        category: pyds-security-scan
+
+  code-security-scan:
+    name: Code Security Analysis
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install uv
+      run: curl -LsSf https://astral.sh/uv/install.sh | sh
+    
+    - name: Install dependencies
+      run: uv sync --extra dev
+    
+    - name: Run Bandit security scan
+      run: |
+        mkdir -p analysis/reports
+        uv run bandit -r src/ -f json -o analysis/reports/bandit-security.json || true
+        uv run bandit -r src/ -f sarif -o bandit-results.sarif || true
+        uv run bandit -r src/
+      continue-on-error: true
+    
+    - name: Upload Bandit SARIF results
+      if: always()
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: bandit-results.sarif
+        category: bandit-security-scan
+    
+    - name: Run Semgrep security scan
+      run: |
+        pip install semgrep
+        semgrep --config=analysis/rules/ src/ --sarif --output=semgrep-results.sarif || true
+        semgrep --config=analysis/rules/ src/ --json --output=analysis/reports/semgrep-security.json || true
+        semgrep --config=analysis/rules/ src/
+      continue-on-error: true
+    
+    - name: Upload Semgrep SARIF results
+      if: always()
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: semgrep-results.sarif
+        category: semgrep-security-scan
+
+  security-baseline-update:
+    name: Update Security Baselines
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' && github.ref == 'refs/heads/main'
+    
+    permissions:
+      contents: write
+      pull-requests: write
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install uv
+      run: curl -LsSf https://astral.sh/uv/install.sh | sh
+    
+    - name: Install dependencies
+      run: uv sync --extra dev
+    
+    - name: Generate new security baselines
+      run: |
+        mkdir -p analysis/baselines
+        
+        # Generate new Bandit baseline
+        uv run bandit -r src/ -f json -o analysis/baselines/bandit-baseline-new.json || true
+        
+        # Compare with existing baseline
+        if [ -f analysis/baselines/bandit-baseline.json ]; then
+          echo "Comparing with existing baseline..."
+          python3 << 'EOF'
+        import json
+        from pathlib import Path
+        
+        old_file = Path('analysis/baselines/bandit-baseline.json')
+        new_file = Path('analysis/baselines/bandit-baseline-new.json')
+        
+        if old_file.exists() and new_file.exists():
+            with open(old_file) as f:
+                old_data = json.load(f)
+            with open(new_file) as f:
+                new_data = json.load(f)
+            
+            old_issues = len(old_data.get('results', []))
+            new_issues = len(new_data.get('results', []))
+            
+            print(f"Baseline comparison:")
+            print(f"  Old issues: {old_issues}")
+            print(f"  New issues: {new_issues}")
+            print(f"  Change: {new_issues - old_issues:+d}")
+            
+            # Only update if significant change
+            if abs(new_issues - old_issues) > 2:
+                new_file.rename(old_file)
+                print("Updated baseline due to significant change")
+            else:
+                print("No significant change, keeping existing baseline")
+        else:
+            if new_file.exists():
+                new_file.rename('analysis/baselines/bandit-baseline.json')
+                print("Created initial baseline")
+        EOF
+        fi
+    
+    - name: Commit baseline updates
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+        if git diff --quiet analysis/baselines/; then
+          echo "No baseline changes to commit"
+        else
+          git add analysis/baselines/
+          git commit -m "chore: update security baselines [skip ci]"
+          git push
+          echo "Updated security baselines"
+        fi
+
+  security-alert:
+    name: Security Alert Notification
+    runs-on: ubuntu-latest
+    needs: [dependency-scan, code-security-scan]
+    if: always() && (needs.dependency-scan.result == 'failure' || needs.code-security-scan.result == 'failure')
+    
+    steps:
+    - name: Download security reports
+      uses: actions/download-artifact@v3
+      with:
+        name: security-scan-reports
+        path: analysis/reports/
+    
+    - name: Analyze security results and send alerts
+      run: |
+        python3 << 'EOF'
+        import json
+        from pathlib import Path
+        
+        critical_issues = []
+        high_issues = []
+        
+        # Check comprehensive security report
+        security_file = Path('analysis/reports/security-comprehensive.json')
+        if security_file.exists():
+            with open(security_file) as f:
+                security_data = json.load(f)
+            
+            for issue in security_data.get('issues', []):
+                if issue.get('severity') == 'critical':
+                    critical_issues.append(issue)
+                elif issue.get('severity') == 'high':
+                    high_issues.append(issue)
+        
+        if critical_issues or high_issues:
+            print(f"🚨 SECURITY ALERT 🚨")
+            print(f"Critical issues: {len(critical_issues)}")
+            print(f"High severity issues: {len(high_issues)}")
+            print()
+            
+            if critical_issues:
+                print("Critical Issues:")
+                for issue in critical_issues[:5]:  # Show first 5
+                    print(f"  - {issue.get('title', 'Unknown')}")
+                    print(f"    File: {issue.get('file_path', 'Unknown')}")
+                    print(f"    Tool: {issue.get('tool', 'Unknown')}")
+                    print()
+            
+            # In a real environment, you might send notifications via:
+            # - Slack webhook
+            # - Email
+            # - Microsoft Teams
+            # - PagerDuty
+            # etc.
+            
+        else:
+            print("✅ No critical or high severity security issues found")
+        EOF
+    
+    - name: Create security issue
+      if: env.CRITICAL_SECURITY_ISSUES == 'true'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const title = "🚨 Critical Security Issues Detected";
+          const body = `Critical security vulnerabilities have been detected in the codebase.
+          
+          Please review the security scan results immediately:
+          - Check the workflow run: ${context.payload.workflow_run?.html_url || 'Unknown'}
+          - Review Security tab: ${context.payload.repository.html_url}/security
+          - Download artifacts for detailed analysis
+          
+          **Action Required:**
+          1. Review all critical and high severity findings
+          2. Apply security patches or fixes
+          3. Re-run security scans to verify fixes
+          4. Update security baselines if needed
+          
+          **Auto-generated by Security Scan workflow**`;
+          
+          // Check if issue already exists
+          const issues = await github.rest.issues.listForRepo({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            labels: 'security,critical',
+            state: 'open'
+          });
+          
+          if (issues.data.length === 0) {
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['security', 'critical', 'auto-generated']
+            });
+          }

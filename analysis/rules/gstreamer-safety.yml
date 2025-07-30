@@ -1,0 +1,210 @@
+# Semgrep rules for GStreamer-specific safety checks
+# Focus on proper GStreamer usage patterns and common pitfalls
+
+rules:
+  # Missing Gst.init() call
+  - id: missing-gst-init
+    patterns:
+      - pattern: |
+          Gst.ElementFactory.make(...)
+      - pattern-not-inside: |
+          Gst.init(...)
+          ...
+          Gst.ElementFactory.make(...)
+    message: "GStreamer elements used without proper Gst.init() initialization"
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      subcategory: initialization
+      cwe: "CWE-665: Improper Initialization"
+
+  # Improper gi.require_version usage
+  - id: missing-gi-require-version
+    patterns:
+      - pattern: |
+          from gi.repository import Gst
+      - pattern-not-inside: |
+          gi.require_version('Gst', '1.0')
+          ...
+          from gi.repository import Gst
+    message: "Missing gi.require_version() before importing GStreamer"
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      subcategory: version-compatibility
+
+  # Unsafe element state transitions
+  - id: unsafe-state-transition
+    patterns:
+      - pattern: |
+          $ELEMENT.set_state(Gst.State.PLAYING)
+      - pattern-not-inside: |
+          ret = $ELEMENT.set_state(Gst.State.PLAYING)
+          if ret == Gst.StateChangeReturn.FAILURE:
+            ...
+    message: "GStreamer state changes should check return value for failures"
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      subcategory: error-handling
+
+  # Unmanaged pipeline references
+  - id: unmanaged-pipeline-reference
+    patterns:
+      - pattern: |
+          pipeline = Gst.Pipeline.new($NAME)
+      - pattern-not-inside: |
+          try:
+            pipeline = Gst.Pipeline.new($NAME)
+            ...
+          finally:
+            pipeline.set_state(Gst.State.NULL)
+    message: "GStreamer pipeline should be properly cleaned up (set to NULL state)"
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      subcategory: resource-management
+
+  # Missing bus message handling
+  - id: missing-bus-message-handling
+    patterns:
+      - pattern: |
+          bus = $PIPELINE.get_bus()
+      - pattern-not: |
+          bus = $PIPELINE.get_bus()
+          ...
+          bus.add_signal_watch()
+    message: "GStreamer bus should have proper message handling setup"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: security
+      subcategory: message-handling
+
+  # Unsafe probe callback patterns
+  - id: unsafe-probe-callback
+    patterns:
+      - pattern: |
+          def $CALLBACK(pad, probe_info):
+            ...
+            return Gst.PadProbeReturn.OK
+      - pattern-not: |
+          def $CALLBACK(pad, probe_info):
+            try:
+              ...
+              return Gst.PadProbeReturn.OK
+            except Exception:
+              ...
+              return Gst.PadProbeReturn.DROP
+    message: "GStreamer probe callbacks should handle exceptions to prevent pipeline stalls"
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      subcategory: exception-handling
+
+  # Buffer mapping without unmapping
+  - id: buffer-map-without-unmap
+    patterns:
+      - pattern: |
+          success, map_info = $BUFFER.map(Gst.MapFlags.READ)
+      - pattern-not: |
+          success, map_info = $BUFFER.map(Gst.MapFlags.READ)
+          ...
+          $BUFFER.unmap(map_info)
+    message: "GStreamer buffer mapping should always be followed by unmapping"
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      subcategory: memory-management
+      cwe: "CWE-404: Improper Resource Shutdown"
+
+  # Unsafe caps negotiation
+  - id: unsafe-caps-negotiation
+    patterns:
+      - pattern: |
+          caps = Gst.Caps.from_string($CAPS_STRING)
+      - pattern: |
+          $ELEMENT.set_property("caps", $CAPS)
+    message: "Ensure caps strings are validated and come from trusted sources"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: security
+      subcategory: input-validation
+
+  # Missing NULL check for GStreamer objects
+  - id: missing-null-check-gst-object
+    patterns:
+      - pattern: |
+          $ELEMENT = Gst.ElementFactory.make($FACTORY_NAME, $ELEMENT_NAME)
+          $ELEMENT.set_property($PROP, $VALUE)
+      - pattern-not: |
+          $ELEMENT = Gst.ElementFactory.make($FACTORY_NAME, $ELEMENT_NAME)
+          if $ELEMENT is None:
+            ...
+          $ELEMENT.set_property($PROP, $VALUE)
+    message: "Check if GStreamer element creation succeeded before using"
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      subcategory: null-pointer
+      cwe: "CWE-476: NULL Pointer Dereference"
+
+  # Unsafe plugin loading
+  - id: unsafe-plugin-loading
+    patterns:
+      - pattern: |
+          Gst.Registry.get().scan_path($PATH)
+    message: "Scanning custom plugin paths should validate path safety"
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      subcategory: plugin-security
+
+  # Missing error handling for linking elements
+  - id: missing-link-error-handling
+    patterns:
+      - pattern: |
+          $ELEMENT1.link($ELEMENT2)
+      - pattern-not: |
+          if not $ELEMENT1.link($ELEMENT2):
+            ...
+    message: "GStreamer element linking should check for success"
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      subcategory: error-handling
+
+  # Unsafe property setting with user input
+  - id: unsafe-property-user-input
+    patterns:
+      - pattern: |
+          $ELEMENT.set_property($PROP, $USER_INPUT)
+    message: "Validate user input before setting GStreamer element properties"
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      subcategory: input-validation
+      cwe: "CWE-20: Improper Input Validation"
+
+  # Missing timeout handling for state changes
+  - id: missing-state-change-timeout
+    patterns:
+      - pattern: |
+          $ELEMENT.get_state(Gst.CLOCK_TIME_NONE)
+    message: "Use reasonable timeouts for GStreamer state changes to prevent indefinite blocking"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: security
+      subcategory: timeout-handling

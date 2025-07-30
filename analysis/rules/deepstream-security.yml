@@ -1,0 +1,156 @@
+# Custom Semgrep rules for DeepStream and GStreamer security
+# https://semgrep.dev/docs/writing-rules/overview/
+
+rules:
+  # GStreamer Pipeline Injection Prevention
+  - id: gstreamer-pipeline-injection
+    patterns:
+      - pattern: |
+          Gst.parse_launch($USER_INPUT)
+      - pattern: |
+          gst_parse_launch($USER_INPUT)
+      - pattern: |
+          pipeline.set_state(Gst.State.$STATE)
+    message: "Potential GStreamer pipeline injection vulnerability"
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      subcategory: injection
+      cwe: "CWE-78: OS Command Injection"
+      references:
+        - "https://gstreamer.freedesktop.org/documentation/gstreamer/gstparse.html"
+    fix-regex:
+      regex: 'Gst\.parse_launch\(([^)]+)\)'
+      replacement: '# Validate input before: Gst.parse_launch(\1)'
+
+  # Unsafe DeepStream Element Creation
+  - id: deepstream-unsafe-element-creation
+    patterns:
+      - pattern: |
+          Gst.ElementFactory.make($ELEMENT_NAME, $USER_NAME)
+      - pattern: |
+          gst_element_factory_make($ELEMENT_NAME, $USER_NAME)
+    message: "Unsafe DeepStream element creation with user-controlled name"
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      subcategory: injection
+      cwe: "CWE-20: Improper Input Validation"
+
+  # RTSP Authentication Handling
+  - id: rtsp-plaintext-credentials
+    patterns:
+      - pattern: |
+          "rtsp://$USERNAME:$PASSWORD@$HOST"
+      - pattern: |
+          f"rtsp://{$USERNAME}:{$PASSWORD}@{$HOST}"
+      - pattern-regex: 'rtsp://[^:]+:[^@]+@'
+    message: "RTSP credentials in plaintext - use secure credential storage"
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      subcategory: hardcoded-credentials
+      cwe: "CWE-798: Use of Hard-coded Credentials"
+
+  # Video File Path Traversal
+  - id: video-file-path-traversal
+    patterns:
+      - pattern: |
+          open($USER_PATH, ...)
+      - pattern: |
+          cv2.VideoCapture($USER_PATH)
+      - pattern: |
+          filesrc.set_property("location", $USER_PATH)
+    message: "Potential path traversal in video file access"
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      subcategory: path-traversal
+      cwe: "CWE-22: Path Traversal"
+
+  # Unsafe Probe Function Registration
+  - id: unsafe-probe-registration
+    patterns:
+      - pattern: |
+          $PAD.add_probe(Gst.PadProbeType.$TYPE, $CALLBACK)
+    message: "Ensure probe callbacks are properly validated and don't expose sensitive data"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: security
+      subcategory: callback-validation
+
+  # DeepStream Buffer Access Validation
+  - id: deepstream-buffer-bounds-check
+    patterns:
+      - pattern: |
+          pyds.get_nvds_buf_surface($BUFFER, $FRAME_META)
+    message: "Ensure buffer bounds checking before DeepStream buffer access"
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      subcategory: buffer-overflow
+      cwe: "CWE-120: Buffer Copy without Checking Size of Input"
+
+  # Network Source Validation
+  - id: network-source-validation
+    patterns:
+      - pattern: |
+          uridecodebin.set_property("uri", $URI)
+      - pattern: |
+          rtspsrc.set_property("location", $LOCATION)
+    message: "Validate network URIs to prevent SSRF and unauthorized access"
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      subcategory: ssrf
+      cwe: "CWE-918: Server-Side Request Forgery"
+
+  # Memory Management in Callbacks
+  - id: gstreamer-memory-leak
+    patterns:
+      - pattern: |
+          def $CALLBACK(pad, probe_info):
+            ...
+            return Gst.PadProbeReturn.OK
+    message: "Ensure proper memory management in GStreamer callbacks to prevent leaks"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: security
+      subcategory: memory-management
+
+  # Unsafe Dynamic Plugin Loading
+  - id: unsafe-plugin-loading
+    patterns:
+      - pattern: |
+          Gst.Registry.get().find_plugin($PLUGIN_NAME)
+      - pattern: |
+          importlib.import_module($USER_MODULE)
+    message: "Validate plugin names to prevent loading malicious plugins"
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      subcategory: code-injection
+      cwe: "CWE-94: Code Injection"
+
+  # Hardcoded GPU Device IDs
+  - id: hardcoded-gpu-device
+    patterns:
+      - pattern: |
+          nvstreammux.set_property("gpu-id", $GPU_ID)
+      - pattern: |
+          nvinfer.set_property("gpu-id", $GPU_ID)
+    message: "Consider making GPU device IDs configurable rather than hardcoded"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: security
+      subcategory: configuration

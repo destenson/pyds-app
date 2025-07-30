@@ -1,0 +1,185 @@
+# Semgrep rules for AsyncIO and threading security patterns
+# Focus on thread safety and async/await usage in GStreamer context
+
+rules:
+  # Unsafe Shared State Access
+  - id: unsafe-shared-state-access
+    patterns:
+      - pattern: |
+          class $CLASS:
+            ...
+            $ATTR = ...
+            ...
+            async def $METHOD(self, ...):
+              ...
+              self.$ATTR = $VALUE
+              ...
+    message: "Potential race condition: shared state modification in async method without proper locking"
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      subcategory: race-condition
+      cwe: "CWE-362: Race Condition"
+
+  # Missing await in async context
+  - id: missing-await-async-call
+    patterns:
+      - pattern: |
+          async def $FUNC(...):
+            ...
+            $ASYNC_FUNC(...)
+            ...
+      - pattern-not: |
+          async def $FUNC(...):
+            ...
+            await $ASYNC_FUNC(...)
+            ...
+    message: "Missing await for async function call"
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      subcategory: async-safety
+
+  # Blocking calls in async functions
+  - id: blocking-call-in-async
+    patterns:
+      - pattern: |
+          async def $FUNC(...):
+            ...
+            time.sleep($TIME)
+            ...
+      - pattern: |
+          async def $FUNC(...):
+            ...
+            requests.get($URL)
+            ...
+      - pattern: |
+          async def $FUNC(...):
+            ...
+            subprocess.run($CMD)
+            ...
+    message: "Blocking call in async function - use async alternatives"
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      subcategory: async-blocking
+
+  # Unprotected concurrent access to GStreamer elements
+  - id: gstreamer-concurrent-access
+    patterns:
+      - pattern: |
+          def $CALLBACK(pad, probe_info):
+            ...
+            $ELEMENT.set_property($PROP, $VALUE)
+            ...
+      - pattern: |
+          def $CALLBACK(pad, probe_info):
+            ...
+            $PIPELINE.set_state($STATE)
+            ...
+    message: "GStreamer element/pipeline state changes in callbacks may need synchronization"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: security
+      subcategory: thread-safety
+
+  # Improper exception handling in async context
+  - id: unhandled-async-exception
+    patterns:
+      - pattern: |
+          async def $FUNC(...):
+            ...
+            await $ASYNC_CALL(...)
+            ...
+      - pattern-not: |
+          async def $FUNC(...):
+            try:
+              ...
+              await $ASYNC_CALL(...)
+              ...
+            except $EXCEPTION:
+              ...
+    message: "Async calls should be wrapped in proper exception handling"
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      subcategory: error-handling
+
+  # Unsafe queue operations
+  - id: unsafe-queue-operations
+    patterns:
+      - pattern: |
+          $QUEUE.get_nowait()
+      - pattern: |
+          $QUEUE.put_nowait($ITEM)
+    message: "Queue operations without proper exception handling for Empty/Full exceptions"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: security
+      subcategory: queue-safety
+
+  # Missing task cancellation handling
+  - id: missing-task-cancellation
+    patterns:
+      - pattern: |
+          asyncio.create_task($CORO)
+      - pattern-not: |
+          try:
+            ...
+            asyncio.create_task($CORO)
+            ...
+          except asyncio.CancelledError:
+            ...
+    message: "Tasks should handle CancelledError for proper cleanup"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: security
+      subcategory: task-management
+
+  # Thread pool executor without proper resource management
+  - id: thread-pool-resource-leak
+    patterns:
+      - pattern: |
+          ThreadPoolExecutor(...)
+      - pattern-not: |
+          with ThreadPoolExecutor(...) as $EXECUTOR:
+            ...
+    message: "ThreadPoolExecutor should be used with context manager for proper resource cleanup"
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      subcategory: resource-management
+
+  # Unsafe signal handling in async context
+  - id: unsafe-signal-handling
+    patterns:
+      - pattern: |
+          signal.signal($SIG, $HANDLER)
+    message: "Signal handlers in async applications should be carefully designed to avoid race conditions"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: security
+      subcategory: signal-handling
+
+  # Event loop running in wrong context
+  - id: event-loop-context-issue
+    patterns:
+      - pattern: |
+          asyncio.run($CORO)
+      - pattern: |
+          loop.run_until_complete($CORO)
+    message: "Ensure event loop is properly managed and not running in thread contexts"
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      subcategory: event-loop-management

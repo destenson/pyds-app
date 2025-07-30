@@ -1,0 +1,47 @@
+# Bandit security scanning configuration
+# https://bandit.readthedocs.io/en/latest/config.html
+
+[bandit]
+# Recursively scan src/ directory
+targets = src/
+
+# Exclude patterns
+exclude_dirs = tests,examples,docs,build,dist,.venv,vendor,htmlcov,.pytest_cache
+
+# Test IDs to skip (comma-separated list)
+skips = B101,B603
+
+# Confidence level for reporting issues (low, medium, high)
+# HIGH for CI/CD, MEDIUM for local development
+confidence = medium
+
+# Severity level for reporting issues (low, medium, high)
+severity = low
+
+# Output format (json, txt, csv, xml, yaml)
+format = json
+
+# Optional baseline file for ignoring known issues
+# baseline = analysis/baselines/bandit-baseline.json
+
+# Reports configuration
+reports = analysis/reports
+
+# Additional bandit configuration
+[bandit.any_other_function_with_shell_equals_true]
+# Allow shell=True in specific contexts
+no_shell_injection = src/utils/,scripts/
+
+[bandit.hardcoded_password_string]
+# Whitelist common test patterns
+word_list = test,example,demo,sample
+
+[bandit.hardcoded_password_funcarg]
+# Allow hardcoded passwords in test functions
+func_names = test_,mock_,fake_
+
+# Custom patterns for GStreamer and DeepStream
+[bandit.subprocess_popen_with_shell_equals_true]
+# Allow subprocess with shell=True for GStreamer pipeline commands
+# These are typically controlled and validated
+check_call_list = gst-inspect,gst-launch

@@ -97,6 +97,18 @@ dev = [
     "mypy>=1.5.0",
     "isort>=5.12.0",
     
+    # Static analysis and security
+    "bandit[toml]>=1.7.5",      # Security scanning
+    "semgrep>=1.45.0",          # Advanced security rules  
+    "vulture>=2.10",            # Dead code detection
+    "safety>=2.3.5",            # Dependency vulnerability scanning
+    "pip-audit>=2.6.1",         # Alternative dependency scanner
+    "pre-commit>=3.6.0",        # Git hooks framework
+    "prospector>=1.10.3",       # Analysis aggregator
+    "coverage[toml]>=7.3.0",    # Enhanced coverage analysis
+    "diff-cover>=8.0.0",        # Coverage diff analysis
+    "coverage-badge>=1.1.0",    # Generate coverage badges
+    
     # Type stubs
     "types-PyYAML>=6.0.0",
     "types-requests>=2.31.0",
@@ -268,31 +280,126 @@ extend-exclude = '''
 )/
 '''
 
-# MyPy configuration
+# MyPy configuration - Enhanced for strict type checking
 [tool.mypy]
-python_version = "3.8"
+# Python version and strict mode
+python_version = "3.11"
+strict = true
 warn_return_any = true
 warn_unused_configs = true
+
+# Type checking strictness
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
-check_untyped_defs = true
 disallow_untyped_decorators = true
+disallow_any_generics = true
+disallow_any_unimported = true
+disallow_subclassing_any = true
 no_implicit_optional = true
+strict_optional = true
+
+# Warning controls
 warn_redundant_casts = true
 warn_unused_ignores = true
 warn_no_return = true
 warn_unreachable = true
-strict_equality = true
-show_error_codes = true
+warn_missing_imports = true
 
+# Error formatting
+show_error_codes = true
+show_column_numbers = true
+show_error_context = true
+pretty = true
+color_output = true
+
+# Performance optimizations
+incremental = true
+cache_dir = ".mypy_cache"
+sqlite_cache = true
+
+# Namespace packages support
+namespace_packages = true
+explicit_package_bases = true
+
+# Plugin configurations
+plugins = [
+    "pydantic.mypy",
+    "pytest_mypy_plugins.pydantic_plugin"
+]
+
+# Pydantic plugin settings
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+warn_untyped_fields = true
+
+# Module-specific overrides
 [[tool.mypy.overrides]]
 module = [
     "gi.*",
     "pyds.*", 
     "cv2.*",
-    "numpy.*"
+    "numpy.*",
+    "gst.*",
+    "pygobject.*"
 ]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "tests.*",
+    "conftest"
+]
+# Allow more relaxed checking in tests
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = [
+    "scripts.*",
+    "examples.*"
+]
+# Relaxed checking for scripts and examples
+warn_return_any = false
+disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = "src.utils.deepstream"
+# Special handling for DeepStream compatibility module
+warn_return_any = false
+disallow_any_generics = false
+# This module handles optional imports and fallbacks
+
+[[tool.mypy.overrides]]
+module = "src.pipeline.manager" 
+# GStreamer pipeline manager has complex callback types
+warn_return_any = false
+disallow_any_generics = false
+
+[[tool.mypy.overrides]]
+module = [
+    "bandit.*",
+    "vulture.*", 
+    "semgrep.*",
+    "safety.*",
+    "prospector.*"
+]
+ignore_missing_imports = true
+
+# Third-party type stub overrides
+[[tool.mypy.overrides]]
+module = [
+    "rich.*",
+    "click.*",
+    "httpx.*",
+    "aiohttp.*",
+    "structlog.*",
+    "prometheus_client.*"
+]
+# Allow some flexibility with third-party libraries
+warn_return_any = false
 
 # Pytest configuration
 [tool.pytest.ini_options]
@@ -355,3 +462,29 @@ precision = 2
 
 [tool.coverage.html]
 directory = "htmlcov"
+
+# Bandit security scanning configuration
+[tool.bandit]
+exclude_dirs = ["tests", "examples", "docs", "build", "dist", ".venv", "vendor"]
+skips = [
+    "B101",  # Test for use of assert (we use assert in tests)
+    "B603",  # subprocess call: check for execution of untrusted input (handled contextually)
+]
+# High confidence level for CI, medium for local development
+confidence = "medium"
+
+[tool.bandit.assert_used]
+skips = ["**/tests/**", "**/test_*.py"]
+
+# Vulture dead code detection configuration
+[tool.vulture]
+exclude = ["build/", "dist/", ".venv/", "vendor/"]
+ignore_decorators = ["@app.route", "@click.command", "@pytest.fixture", "@property"]
+ignore_names = ["_*", "test_*", "Test*"]
+min_confidence = 80
+paths = ["src"]
+sort_by_size = true
+
+# Semgrep configuration
+[tool.semgrep]
+config = ["analysis/rules/"]

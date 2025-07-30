@@ -1,0 +1,33 @@
+# Vulture dead code detection configuration
+# https://vulture.readthedocs.io/
+
+# Paths to scan
+src/
+
+# Exclude patterns (directories and files to ignore)
+build/
+dist/
+.venv/
+vendor/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Minimum confidence level (0-100, higher = more confident it's dead code)
+# 80 is a good balance between false positives and catching real dead code
+--min-confidence=80
+
+# Sort results by file size (helpful for prioritizing cleanup)
+--sort-by-size
+
+# Include decorators that indicate used code
+--ignore-decorators=@app.route,@click.command,@pytest.fixture,@property,@cached_property,@staticmethod,@classmethod
+
+# Include names that look unused but are legitimate
+--ignore-names=_*,test_*,Test*,setUp*,tearDown*
+
+# Use whitelist file for more complex patterns
+--whitelist-file=analysis/baselines/vulture-whitelist.py
+
+# Make output deterministic for CI
+--sort
