@@ -1,0 +1,218 @@
+# Testing Configuration for PyDS Video Analytics System
+# Optimized settings for automated testing with predictable behavior,
+# mock sources, and comprehensive test coverage
+
+# Application Information
+name: "PyDS Video Analytics - Testing"
+version: "0.1.0"
+environment: "development"  # Use development for testing
+debug: true  # Enable debug mode for test debugging
+
+# Testing Pipeline Configuration
+pipeline:
+  # Minimal resources for fast testing
+  batch_size: 1                    # Single batch for predictable testing
+  width: 640                       # Small resolution for speed
+  height: 480                      # Small resolution for speed
+  fps: 10.0                        # Low FPS for faster tests
+  
+  # Testing memory and GPU settings
+  buffer_pool_size: 4              # Minimal buffer pool
+  gpu_id: 0                        # Use GPU if available
+  batch_timeout_us: 100000         # 10 FPS timeout
+  enable_gpu_inference: false      # Prefer CPU for consistent testing
+  memory_type: "unified"           # Unified memory for compatibility
+  
+  # Testing pipeline settings
+  num_decode_surfaces: 4           # Minimal decode surfaces
+  processing_mode: "single"        # Single mode for predictable behavior
+
+# Testing Detection Configuration
+detection:
+  # Predictable detection settings for testing
+  confidence_threshold: 0.1        # Very low threshold to catch test objects
+  nms_threshold: 0.9              # Minimal NMS for testing
+  max_objects: 10                 # Limited objects for test predictability
+  
+  # Testing tracking
+  enable_tracking: false          # Disable tracking for simpler tests
+  tracker_config_file: null      # No tracker config
+  
+  # Testing model settings (mock/test models)
+  model_engine_file: null         # Use mock model
+  labels_file: null              # Use test labels
+  input_shape: [3, 320, 320]     # Very small input for speed
+  output_layers: ["output"]
+  
+  # Testing inference settings
+  batch_inference: false          # Single inference for predictability
+  tensor_rt_precision: "fp32"     # FP32 for consistent results
+
+# Testing Alert System
+alerts:
+  enabled: true                   # Enable for alert testing
+  
+  # Testing throttling - minimal for test coverage
+  throttle_seconds: 1             # Very short throttle for testing
+  burst_threshold: 1              # Single burst for testing
+  max_alerts_per_minute: 100      # High rate limit for testing
+  
+  # Testing alert filtering
+  min_confidence: 0.0             # No filtering for testing
+  level: "low"                    # Low severity for testing
+  
+  # Testing alert handlers
+  handlers:
+    - "console"                   # Console for test output verification
+  
+  # Testing retry settings
+  retry_attempts: 1               # Single attempt for fast tests
+  retry_delay: 0.1               # Minimal delay
+
+# Testing Monitoring
+monitoring:
+  enabled: true                   # Enable for monitoring tests
+  
+  # Fast monitoring for testing
+  metrics_interval: 1             # Very frequent for testing
+  health_check_interval: 1        # Very frequent for testing
+  
+  # Testing profiling
+  profiling_enabled: false        # Disable for test speed
+  
+  # Testing Prometheus
+  prometheus_enabled: false       # Not needed for testing
+  prometheus_port: 8001          # Different port to avoid conflicts
+  prometheus_path: "/metrics"     
+  
+  # Testing logging integration
+  log_metrics: false             # Disable for cleaner test output
+  
+  # Testing alert thresholds - very high to avoid alerts during testing
+  cpu_threshold: 99.0            # Very high threshold
+  memory_threshold: 99.0         # Very high threshold
+  gpu_threshold: 99.0            # Very high threshold
+
+# Testing Logging Configuration
+logging:
+  level: "warning"               # Reduce log noise during testing
+  format: "text"                 # Simple format for test readability
+  include_metrics: false         # Disable metrics for cleaner output
+  
+  # Testing file logging
+  log_file: null                 # No file logging during tests
+  max_file_size_mb: 10          # Small size if enabled
+  backup_count: 1               # Minimal backups
+  
+  # Testing output settings
+  console_output: false         # Minimize console output during tests
+  json_output: false            # Simple format
+  
+  # Testing log streaming
+  real_time_streaming: false    # Not needed for testing
+  streaming_port: 9998          # Different port
+  
+  # Testing spam filtering
+  filter_spam: false            # No filtering for test predictability
+  rate_limit_per_minute: 10000  # Very high limit
+
+# Testing Error Recovery
+recovery:
+  max_retries: 1                # Single retry for fast test failure
+  retry_delay: 0.1              # Minimal delay
+  exponential_backoff: false    # Linear for predictability
+  max_retry_delay: 1.0          # Short maximum delay
+  
+  # Testing circuit breaker
+  circuit_breaker_enabled: false   # Disable for test predictability
+  circuit_breaker_threshold: 1     # Single failure threshold
+  circuit_breaker_timeout: 1       # Short timeout
+
+# Testing Video Sources
+# Predictable test sources for automated testing
+sources:
+  # Primary test source with known pattern
+  - id: "test_primary"
+    name: "Primary Test Source"
+    type: "test"
+    uri: "videotestsrc pattern=smpte num-buffers=100"
+    enabled: true
+    retry_count: 0
+    max_retries: 1
+    retry_delay: 0.1
+    timeout: 5
+    parameters:
+      pattern: "smpte"
+      num-buffers: 100  # Limited frames for predictable tests
+      framerate: "10/1"
+      
+  # Secondary test source for multi-source testing
+  - id: "test_secondary"
+    name: "Secondary Test Source"
+    type: "test"
+    uri: "videotestsrc pattern=ball num-buffers=50"
+    enabled: false  # Disabled by default, enabled in specific tests
+    retry_count: 0
+    max_retries: 1
+    retry_delay: 0.1
+    timeout: 5
+    parameters:
+      pattern: "ball"
+      num-buffers: 50
+      framerate: "10/1"
+      
+  # Failing source for error testing
+  - id: "test_failing"
+    name: "Failing Test Source"
+    type: "rtsp"
+    uri: "rtsp://nonexistent.server/stream"
+    enabled: false  # Only enabled for error tests
+    retry_count: 0
+    max_retries: 1
+    retry_delay: 0.1
+    timeout: 1  # Short timeout for fast failure
+    parameters: {}
+
+# Testing System Settings
+thread_pool_size: 1               # Single thread for predictable testing
+max_concurrent_sources: 2         # Minimal concurrent sources
+graceful_shutdown_timeout: 5      # Short shutdown timeout for tests
+
+# Testing Extensions
+extensions:
+  # Testing utilities
+  testing:
+    mock_deepstream: true         # Enable DeepStream mocking
+    mock_gpu: true               # Enable GPU mocking
+    deterministic_detection: true # Enable deterministic detection results
+    fixed_timestamps: true       # Use fixed timestamps for reproducibility
+    
+  # Test data generation
+  test_data:
+    generate_mock_detections: true  # Generate predictable detections
+    mock_detection_count: 3         # Fixed number of detections per frame
+    mock_confidence_values: [0.9, 0.8, 0.7]  # Fixed confidence values
+    mock_bounding_boxes:            # Fixed bounding boxes
+      - [0.1, 0.1, 0.2, 0.2]
+      - [0.3, 0.3, 0.15, 0.15]
+      - [0.6, 0.5, 0.25, 0.3]
+    
+  # Performance testing
+  performance:
+    enable_benchmarking: true     # Enable performance benchmarking
+    max_test_duration: 30         # Maximum test duration in seconds
+    target_fps: 10.0             # Target FPS for performance tests
+    memory_limit_mb: 512          # Memory limit for resource tests
+    
+  # Integration testing
+  integration:
+    enable_external_services: false  # Disable external service calls
+    mock_webhook_responses: true     # Mock webhook responses
+    simulate_network_delays: false   # Disable network simulation
+    
+  # Chaos testing
+  chaos:
+    enable_chaos_testing: false  # Disable by default
+    failure_rate: 0.1            # 10% failure rate when enabled
+    recovery_time: 1.0           # Fast recovery for testing
+    random_disconnections: false # Disable random disconnections

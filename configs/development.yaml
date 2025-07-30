@@ -1,0 +1,200 @@
+# Development Configuration for PyDS Video Analytics System
+# Optimized settings for development with verbose logging, debugging features,
+# and lower resource usage for development machines
+
+# Application Information
+name: "PyDS Video Analytics - Development"
+version: "0.1.0"
+environment: "development"
+debug: true  # Enable debug mode for development
+
+# Development Pipeline Configuration
+pipeline:
+  # Lower resource usage for development
+  batch_size: 2                    # Smaller batch size for development
+  width: 1280                      # Lower resolution for faster processing
+  height: 720                      # Lower resolution for faster processing
+  fps: 15.0                        # Lower FPS for development
+  
+  # Development memory and GPU settings
+  buffer_pool_size: 8              # Smaller buffer pool
+  gpu_id: 0                        # Use primary GPU if available
+  batch_timeout_us: 66666          # ~15 FPS timeout
+  enable_gpu_inference: true       # Use GPU if available
+  memory_type: "unified"           # Unified memory for development
+  
+  # Development pipeline settings
+  num_decode_surfaces: 8           # Fewer decode surfaces
+  processing_mode: "batch"         # Still use batch mode
+
+# Development Detection Configuration
+detection:
+  # More permissive detection for development
+  confidence_threshold: 0.5        # Lower confidence threshold
+  nms_threshold: 0.6              # Less aggressive NMS
+  max_objects: 50                 # Fewer objects for performance
+  
+  # Development tracking
+  enable_tracking: false          # Disable tracking for faster processing
+  tracker_config_file: null      # No tracker config
+  
+  # Development model settings (using defaults/test models)
+  model_engine_file: null         # Use default or test model
+  labels_file: null              # Use default labels
+  input_shape: [3, 416, 416]     # Smaller input shape for speed
+  output_layers: ["output"]
+  
+  # Development inference settings
+  batch_inference: true           # Keep batch inference
+  tensor_rt_precision: "fp32"     # FP32 for better debugging
+
+# Development Alert System
+alerts:
+  enabled: true                   # Enable alerts for testing
+  
+  # Development throttling - less restrictive
+  throttle_seconds: 30            # Shorter throttle for development
+  burst_threshold: 2              # Lower burst threshold
+  max_alerts_per_minute: 5        # Lower rate limit
+  
+  # Development alert filtering
+  min_confidence: 0.3             # Lower confidence for development
+  level: "low"                    # Low severity for development
+  
+  # Development alert handlers
+  handlers:
+    - "console"                   # Console output for immediate feedback
+    # - "file"                    # Optional file logging
+  
+  # Development retry settings
+  retry_attempts: 2               # Fewer retries for faster feedback
+  retry_delay: 0.5               # Shorter delay
+
+# Development Monitoring
+monitoring:
+  enabled: true                   # Enable for development insights
+  
+  # Less frequent monitoring for development
+  metrics_interval: 60            # Less frequent metrics
+  health_check_interval: 60       # Less frequent health checks
+  
+  # Development profiling
+  profiling_enabled: true         # Enable for performance tuning
+  
+  # Development Prometheus (optional)
+  prometheus_enabled: false       # Usually not needed in development
+  prometheus_port: 8000          
+  prometheus_path: "/metrics"     
+  
+  # Development logging integration
+  log_metrics: true              # Log metrics for development
+  
+  # Development alert thresholds - more relaxed
+  cpu_threshold: 90.0            # Higher CPU threshold
+  memory_threshold: 90.0         # Higher memory threshold
+  gpu_threshold: 95.0            # Higher GPU threshold
+
+# Development Logging Configuration
+logging:
+  level: "debug"                 # Debug level for development
+  format: "colored"              # Colored format for readability
+  include_metrics: true          # Include metrics for debugging
+  
+  # Development file logging (optional)
+  log_file: null                 # Usually no file logging in development
+  max_file_size_mb: 50          # Smaller log files if enabled
+  backup_count: 3               # Fewer backup files
+  
+  # Development output settings
+  console_output: true          # Always use console in development
+  json_output: false            # Human readable format
+  
+  # Development log streaming
+  real_time_streaming: false    # Not needed for development
+  streaming_port: 9999          
+  
+  # Development spam filtering
+  filter_spam: false            # Don't filter in development for debugging
+  rate_limit_per_minute: 5000   # Higher rate limit for debugging
+
+# Development Error Recovery
+recovery:
+  max_retries: 2                # Fewer retries for faster feedback
+  retry_delay: 1.0              # Shorter delays
+  exponential_backoff: false    # Linear backoff for predictability
+  max_retry_delay: 10.0         # Shorter maximum delay
+  
+  # Development circuit breaker
+  circuit_breaker_enabled: false   # Disable for easier debugging
+  circuit_breaker_threshold: 3     # Lower threshold if enabled
+  circuit_breaker_timeout: 30      # Shorter timeout
+
+# Development Video Sources
+# Pre-configured test sources for development
+sources:
+  # Default test source for development
+  - id: "dev_test_1"
+    name: "Development Test Source"
+    type: "test"
+    uri: "videotestsrc pattern=smpte"
+    enabled: true
+    retry_count: 0
+    max_retries: 3
+    retry_delay: 2.0
+    timeout: 15
+    parameters:
+      pattern: "smpte"
+      framerate: "15/1"
+      
+  # Additional test pattern for variety
+  - id: "dev_test_2"
+    name: "Development Test Pattern"
+    type: "test"
+    uri: "videotestsrc pattern=ball"
+    enabled: false  # Disabled by default
+    retry_count: 0
+    max_retries: 3
+    retry_delay: 2.0
+    timeout: 15
+    parameters:
+      pattern: "ball"
+      framerate: "15/1"
+      
+  # Sample file source for development (if available)
+  # - id: "dev_file_1"
+  #   name: "Development Sample Video"
+  #   type: "file"
+  #   uri: "file:///path/to/development/sample.mp4"
+  #   enabled: false
+  #   retry_count: 0
+  #   max_retries: 2
+  #   retry_delay: 1.0
+  #   timeout: 10
+  #   parameters:
+  #     loop: true
+
+# Development System Settings
+thread_pool_size: 2               # Fewer threads for development
+max_concurrent_sources: 4         # Fewer concurrent sources
+graceful_shutdown_timeout: 15     # Shorter shutdown timeout
+
+# Development Extensions
+extensions:
+  # Development tools
+  development:
+    hot_reload: true              # Enable hot reload for configuration
+    debug_probes: true            # Enable debug probes
+    memory_profiling: true        # Enable memory profiling
+    
+  # Development testing
+  testing:
+    mock_sources: true            # Enable mock video sources
+    synthetic_detections: false   # Enable synthetic detection data
+    performance_simulation: false # Simulate performance issues
+    
+  # Development debugging
+  debugging:
+    dump_frames: false            # Dump processed frames to disk
+    frame_dump_path: "/tmp/pyds-frames"
+    log_pipeline_state: true     # Log detailed pipeline state
+    verbose_metadata: true       # Log detailed metadata information

@@ -1,0 +1,224 @@
+# Default Configuration for PyDS Video Analytics System
+# This file contains comprehensive default settings for all system components
+# Values can be overridden by environment variables (PYDS_*) or command-line arguments
+
+# Application Information
+name: "PyDS Video Analytics"
+version: "0.1.0"
+environment: "development"  # Options: development, staging, production
+debug: false
+
+# Core Pipeline Configuration
+pipeline:
+  # Batch processing settings
+  batch_size: 4                    # Number of streams to batch together (1-16)
+  width: 1920                      # Processing width in pixels (must be multiple of 16)
+  height: 1080                     # Processing height in pixels (must be multiple of 16) 
+  fps: 30.0                        # Target frames per second (1.0-120.0)
+  
+  # Memory and GPU settings
+  buffer_pool_size: 10             # Buffer pool size for memory management (5-50)
+  gpu_id: 0                        # GPU device ID to use (0-7)
+  batch_timeout_us: 40000          # Batch timeout in microseconds (1000-1000000)
+  enable_gpu_inference: true       # Enable GPU acceleration for inference
+  memory_type: "device"            # Memory type: device, unified, pinned
+  
+  # Advanced pipeline settings
+  num_decode_surfaces: 16          # Number of decode surfaces (4-64)
+  processing_mode: "batch"         # Processing mode: batch, single
+
+# Detection Engine Configuration  
+detection:
+  # Detection thresholds
+  confidence_threshold: 0.7        # Minimum confidence for detections (0.0-1.0)
+  nms_threshold: 0.5              # Non-maximum suppression threshold (0.0-1.0)
+  max_objects: 100                # Maximum objects per frame (1-1000)
+  
+  # Tracking settings
+  enable_tracking: true           # Enable object tracking
+  tracker_config_file: null      # Path to tracker configuration file
+  
+  # Model settings
+  model_engine_file: null         # Path to TensorRT engine file
+  labels_file: null              # Path to class labels file
+  input_shape: [3, 608, 608]     # Model input shape [C, H, W]
+  output_layers: ["output"]       # Model output layer names
+  
+  # Inference optimization
+  batch_inference: true           # Enable batch inference
+  tensor_rt_precision: "fp16"     # TensorRT precision: fp32, fp16, int8
+
+# Alert System Configuration
+alerts:
+  enabled: true                   # Enable alert system
+  
+  # Throttling settings
+  throttle_seconds: 60            # Throttle duplicate alerts (1-3600 seconds)
+  burst_threshold: 3              # Maximum alerts in burst period (1-20)
+  max_alerts_per_minute: 10       # Rate limit for alerts (1-1000)
+  
+  # Alert filtering
+  min_confidence: 0.5             # Minimum confidence for alerts (0.0-1.0)
+  level: "medium"                 # Default alert level: low, medium, high, critical
+  
+  # Alert handlers
+  handlers:                       # List of alert handlers to use
+    - "console"                   # Console output
+    # - "file"                    # File logging
+    # - "webhook"                 # HTTP webhook
+    # - "email"                   # Email notifications
+  
+  # Retry settings
+  retry_attempts: 3               # Retry attempts for failed alerts (1-10)
+  retry_delay: 1.0               # Delay between retry attempts (0.1-60.0 seconds)
+
+# Monitoring and Metrics Configuration
+monitoring:
+  enabled: true                   # Enable monitoring
+  
+  # Collection intervals
+  metrics_interval: 30            # Metrics collection interval (1-300 seconds)
+  health_check_interval: 30       # Health check interval (5-300 seconds)
+  
+  # Profiling settings
+  profiling_enabled: false        # Enable performance profiling
+  
+  # Prometheus integration
+  prometheus_enabled: false       # Enable Prometheus metrics
+  prometheus_port: 8000          # Prometheus metrics port (1024-65535)
+  prometheus_path: "/metrics"     # Prometheus metrics path
+  
+  # Logging integration
+  log_metrics: true              # Log metrics to structured logs
+  
+  # Alert thresholds
+  cpu_threshold: 80.0            # CPU usage alert threshold (10.0-100.0%)
+  memory_threshold: 80.0         # Memory usage alert threshold (10.0-100.0%)
+  gpu_threshold: 90.0            # GPU usage alert threshold (10.0-100.0%)
+
+# Logging Configuration
+logging:
+  level: "info"                  # Logging level: debug, info, warning, error, critical
+  format: "colored"              # Log format: json, text, colored
+  include_metrics: true          # Include performance metrics in logs
+  
+  # File logging
+  log_file: null                 # Path to log file (null for no file logging)
+  max_file_size_mb: 100         # Maximum log file size (1-1000 MB)
+  backup_count: 5               # Number of backup log files (1-20)
+  
+  # Output settings
+  console_output: true          # Enable console output
+  json_output: false            # Force JSON output format
+  
+  # Real-time streaming
+  real_time_streaming: false    # Enable real-time log streaming
+  streaming_port: 9999          # Log streaming port (1024-65535)
+  
+  # Spam filtering
+  filter_spam: true             # Enable spam filtering
+  rate_limit_per_minute: 1000   # Rate limit for log messages (10-10000)
+
+# Error Recovery Configuration
+recovery:
+  max_retries: 3                # Maximum retry attempts (1-10)
+  retry_delay: 2.0              # Initial retry delay (0.1-60.0 seconds)
+  exponential_backoff: true     # Use exponential backoff for retries
+  max_retry_delay: 60.0         # Maximum retry delay (1.0-600.0 seconds)
+  
+  # Circuit breaker pattern
+  circuit_breaker_enabled: true    # Enable circuit breaker pattern
+  circuit_breaker_threshold: 5     # Circuit breaker failure threshold (2-20)
+  circuit_breaker_timeout: 60      # Circuit breaker timeout (10-600 seconds)
+
+# Video Sources Configuration
+# This section defines the video sources to process
+# Sources can be RTSP streams, files, webcams, or test sources
+sources:
+  # Example test source (synthetic video for testing)
+  - id: "test_source_1"
+    name: "Test Video Source"
+    type: "test"
+    uri: "videotestsrc pattern=smpte"
+    enabled: true
+    retry_count: 0
+    max_retries: 5
+    retry_delay: 5.0
+    timeout: 30
+    parameters:
+      pattern: "smpte"
+      framerate: "30/1"
+  
+  # Example RTSP source (disabled by default)
+  # - id: "rtsp_camera_1"
+  #   name: "Front Door Camera"
+  #   type: "rtsp"
+  #   uri: "rtsp://username:password@192.168.1.100:554/stream1"
+  #   enabled: false
+  #   retry_count: 0
+  #   max_retries: 10
+  #   retry_delay: 10.0
+  #   timeout: 30
+  #   parameters:
+  #     latency: 200
+  #     buffer_size: 1024
+  
+  # Example file source (disabled by default)
+  # - id: "video_file_1"
+  #   name: "Sample Video File"
+  #   type: "file"
+  #   uri: "file:///path/to/sample_video.mp4"
+  #   enabled: false
+  #   retry_count: 0
+  #   max_retries: 3
+  #   retry_delay: 2.0
+  #   timeout: 30
+  #   parameters:
+  #     loop: true
+  
+  # Example webcam source (disabled by default)  
+  # - id: "webcam_1"
+  #   name: "USB Webcam"
+  #   type: "webcam"
+  #   uri: "0"  # Device ID or /dev/video0
+  #   enabled: false
+  #   retry_count: 0
+  #   max_retries: 5
+  #   retry_delay: 5.0
+  #   timeout: 30
+  #   parameters:
+  #     width: 1280
+  #     height: 720
+  #     framerate: 30
+
+# Advanced System Settings
+thread_pool_size: 4               # Thread pool size (1-32)
+max_concurrent_sources: 8         # Maximum concurrent sources (1-32)
+graceful_shutdown_timeout: 30     # Graceful shutdown timeout (5-300 seconds)
+
+# Custom Extensions
+# This section allows for custom configuration extensions
+extensions:
+  # Example custom detection strategy configuration
+  # custom_detection:
+  #   enabled: false
+  #   model_path: "/path/to/custom/model.engine"
+  #   threshold: 0.8
+  
+  # Example custom alert handler configuration
+  # custom_alerts:
+  #   slack_webhook: "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+  #   teams_webhook: "https://your-teams-webhook-url.com"
+  
+  # Example integration settings
+  # integrations:
+  #   elasticsearch:
+  #     enabled: false
+  #     hosts: ["localhost:9200"]
+  #     index: "pyds-analytics"
+  #   
+  #   influxdb:
+  #     enabled: false
+  #     host: "localhost"
+  #     port: 8086
+  #     database: "pyds_metrics"

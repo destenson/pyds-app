@@ -1,0 +1,175 @@
+# Production Configuration for PyDS Video Analytics System
+# Optimized settings for production deployment with higher performance,
+# comprehensive monitoring, and robust error handling
+
+# Application Information
+name: "PyDS Video Analytics - Production"
+version: "0.1.0"
+environment: "production"
+debug: false
+
+# High-Performance Pipeline Configuration
+pipeline:
+  # Optimized batch processing for production workloads
+  batch_size: 8                    # Higher batch size for better GPU utilization
+  width: 1920                      # Full HD processing
+  height: 1080                     # Full HD processing
+  fps: 30.0                        # Standard 30 FPS
+  
+  # Production memory and GPU settings
+  buffer_pool_size: 20             # Larger buffer pool for stability
+  gpu_id: 0                        # Primary GPU
+  batch_timeout_us: 33333          # ~30 FPS timeout (1/30 * 1000000)
+  enable_gpu_inference: true       # Always use GPU in production
+  memory_type: "device"            # Device memory for best performance
+  
+  # Production pipeline optimization
+  num_decode_surfaces: 32          # More decode surfaces for stability
+  processing_mode: "batch"         # Batch mode for efficiency
+
+# Production Detection Configuration
+detection:
+  # Stricter detection thresholds for production
+  confidence_threshold: 0.8        # Higher confidence threshold
+  nms_threshold: 0.4              # More aggressive NMS
+  max_objects: 200                # Support more objects per frame
+  
+  # Enhanced tracking for production
+  enable_tracking: true           # Always enable tracking
+  tracker_config_file: "/opt/pyds/configs/tracker_config.txt"
+  
+  # Production model settings
+  model_engine_file: "/opt/pyds/models/yolov5s.engine"
+  labels_file: "/opt/pyds/models/coco_labels.txt"
+  input_shape: [3, 640, 640]     # YOLOv5 input shape
+  output_layers: ["output"]
+  
+  # Production inference optimization
+  batch_inference: true           # Always use batch inference
+  tensor_rt_precision: "fp16"     # FP16 for performance/accuracy balance
+
+# Production Alert System
+alerts:
+  enabled: true                   # Always enable alerts in production
+  
+  # Production throttling - more conservative
+  throttle_seconds: 300           # 5-minute throttle for production
+  burst_threshold: 5              # Higher burst threshold
+  max_alerts_per_minute: 20       # Higher rate limit for production
+  
+  # Production alert filtering
+  min_confidence: 0.8             # High confidence threshold
+  level: "high"                   # High severity by default
+  
+  # Production alert handlers
+  handlers:
+    - "console"                   # Console for immediate visibility
+    - "file"                      # File logging for audit trail
+    - "webhook"                   # Webhook for external integrations
+    # - "email"                   # Email for critical alerts
+  
+  # Production retry settings
+  retry_attempts: 5               # More retries for production
+  retry_delay: 2.0               # Longer delay for stability
+
+# Comprehensive Production Monitoring
+monitoring:
+  enabled: true                   # Always enable monitoring
+  
+  # Frequent monitoring for production
+  metrics_interval: 15            # More frequent metrics collection
+  health_check_interval: 15       # More frequent health checks
+  
+  # Production profiling
+  profiling_enabled: true         # Enable profiling for optimization
+  
+  # Prometheus integration for production
+  prometheus_enabled: true        # Enable Prometheus metrics
+  prometheus_port: 8000          # Standard metrics port
+  prometheus_path: "/metrics"     # Standard metrics path
+  
+  # Production logging integration
+  log_metrics: true              # Always log metrics
+  
+  # Production alert thresholds - more conservative
+  cpu_threshold: 70.0            # Lower CPU threshold
+  memory_threshold: 75.0         # Lower memory threshold  
+  gpu_threshold: 85.0            # Lower GPU threshold
+
+# Production Logging Configuration
+logging:
+  level: "info"                  # Info level for production
+  format: "json"                 # JSON format for log aggregation
+  include_metrics: true          # Always include metrics
+  
+  # Production file logging
+  log_file: "/var/log/pyds/pyds-app.log"  # Standard log location
+  max_file_size_mb: 500         # Larger log files
+  backup_count: 10              # More backup files
+  
+  # Production output settings
+  console_output: true          # Keep console output
+  json_output: true             # Force JSON for log aggregation
+  
+  # Production log streaming
+  real_time_streaming: true     # Enable for monitoring systems
+  streaming_port: 9999          # Standard streaming port
+  
+  # Production spam filtering
+  filter_spam: true             # Always filter spam
+  rate_limit_per_minute: 2000   # Higher rate limit for production
+
+# Production Error Recovery
+recovery:
+  max_retries: 5                # More retries in production
+  retry_delay: 5.0              # Longer initial delay
+  exponential_backoff: true     # Always use exponential backoff
+  max_retry_delay: 300.0        # 5-minute maximum delay
+  
+  # Production circuit breaker
+  circuit_breaker_enabled: true    # Always enable circuit breaker
+  circuit_breaker_threshold: 10    # Higher threshold for production
+  circuit_breaker_timeout: 300     # 5-minute timeout
+
+# Production Video Sources
+# Production sources should be configured via external configuration
+# or environment variables for security
+sources: []  # Configure via environment or external config
+
+# Production System Settings
+thread_pool_size: 8               # More threads for production
+max_concurrent_sources: 16        # Support more concurrent sources
+graceful_shutdown_timeout: 60     # Longer shutdown timeout
+
+# Production Extensions
+extensions:
+  # Production monitoring integrations
+  elasticsearch:
+    enabled: true
+    hosts: ["elasticsearch:9200"]
+    index: "pyds-analytics-prod"
+    
+  influxdb:
+    enabled: true
+    host: "influxdb"
+    port: 8086
+    database: "pyds_metrics_prod"
+    
+  # Production alerting
+  slack:
+    enabled: true
+    webhook_url: "${SLACK_WEBHOOK_URL}"
+    channel: "#alerts-production"
+    
+  # Production security
+  security:
+    enable_ssl: true
+    cert_file: "/etc/ssl/certs/pyds.crt"
+    key_file: "/etc/ssl/private/pyds.key"
+    
+  # Production backup
+  backup:
+    enabled: true
+    interval: 3600  # Hourly backups
+    retention_days: 30
+    s3_bucket: "${BACKUP_S3_BUCKET}"
